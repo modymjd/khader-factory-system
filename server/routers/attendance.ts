@@ -14,17 +14,18 @@ export const attendanceRouter = router({
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-      const conditions = input.search
-        ? [sql`${employees.fullName} LIKE ${`%${input.search}%`}`]
-        : [];
+
       const data = await db.select({
         id: employees.id,
         fullName: employees.fullName,
         department: employees.department,
         jobTitle: employees.jobTitle,
       }).from(employees)
-        .where(conditions.length > 0 ? conditions[0] : undefined)
-        .limit(20);
+        .where(input.search && input.search.trim() !== ""
+          ? sql`${employees.fullName} LIKE ${`%${input.search}%`}`
+          : undefined
+        )
+        .limit(50);
       return data;
     }),
 

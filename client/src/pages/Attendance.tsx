@@ -22,7 +22,7 @@ export default function Attendance() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const { data: employees } = trpc.attendance.searchEmployees.useQuery({ search });
+  const { data: employees } = trpc.attendance.searchEmployees.useQuery({ search: search || "" });
   const { data: allQRCodes } = trpc.attendance.getAllQRCodes.useQuery();
   const { data: records, isLoading, refetch } = trpc.attendance.list.useQuery({ page, limit: 20 });
   const { data: stats } = trpc.attendance.getStatistics.useQuery({});
