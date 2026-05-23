@@ -108,7 +108,7 @@ export const ordersRouter = router({
         paymentStatus: "unpaid",
       });
 
-      const orderId = Number(result.insertId);
+      const orderId = parseInt(String(result.insertId));
 
       // Insert order items and update stock
       for (const item of itemsWithPrices) {

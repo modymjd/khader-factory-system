@@ -86,8 +86,8 @@ export const salaryRouter = router({
         status: "pending",
       });
 
-      await logAudit(ctx.user.id, "create", "salary", Number(result.insertId), input, ctx.req);
-      return { id: Number(result.insertId), success: true };
+      await logAudit(ctx.user.id, "create", "salary", parseInt(String(result.insertId)), input, ctx.req);
+      return { id: parseInt(String(result.insertId)), success: true };
     }),
 
   // Mark salary as paid
@@ -233,8 +233,8 @@ export const salaryRouter = router({
       if (!db) throw new Error("Database not available");
 
       const result = await db.insert(leaveRequests).values(input);
-      await logAudit(ctx.user.id, "create", "leave", Number(result.insertId), input, ctx.req);
-      return { id: Number(result.insertId), success: true };
+      await logAudit(ctx.user.id, "create", "leave", parseInt(String(result.insertId)), input, ctx.req);
+      return { id: parseInt(String(result.insertId)), success: true };
     }),
 
   leaveUpdateStatus: protectedProcedure

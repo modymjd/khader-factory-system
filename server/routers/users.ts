@@ -134,7 +134,7 @@ export const usersRouter = router({
 
       // Create employee record
       await db.insert(employees).values({
-        userId: Number(result.insertId),
+        userId: parseInt(String(result.insertId)),
         fullName: input.fullName,
         jobTitle: input.jobTitle,
         department: input.department,
@@ -143,9 +143,9 @@ export const usersRouter = router({
         annualLeaveBalance: input.annualLeaveBalance,
       });
 
-      await logAudit(ctx.user.id, "create", "users", Number(result.insertId), { username: input.username }, ctx.req);
+      await logAudit(ctx.user.id, "create", "users", parseInt(String(result.insertId)), { username: input.username }, ctx.req);
 
-      return { id: Number(result.insertId), success: true };
+      return { id: parseInt(String(result.insertId)), success: true };
     }),
 
   update: protectedProcedure

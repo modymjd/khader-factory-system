@@ -100,7 +100,7 @@ export const rolesRouter = router({
         ctx.user.id,
         "create",
         "roles",
-        Number(result.insertId),
+        parseInt(String(result.insertId)),
         { name: input.name },
         ctx.req
       );
@@ -241,7 +241,7 @@ export const rolesRouter = router({
         ctx.user.id,
         "create",
         "rolePermissions",
-        Number(result.insertId),
+        parseInt(String(result.insertId)),
         { roleId: input.roleId, permissionId: input.permissionId },
         ctx.req
       );

@@ -151,7 +151,7 @@ export const productsRouter = router({
         ctx.user.id,
         "create",
         "products",
-        Number(result.insertId),
+        parseInt(String(result.insertId)),
         { sku: input.sku, name: input.name },
         ctx.req
       );
