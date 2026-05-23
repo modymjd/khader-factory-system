@@ -15,7 +15,7 @@ function hashPassword(password: string): string {
 }
 
 export const authRouter = router({
-  me: protectedProcedure.query(async ({ ctx }) => {
+  me: publicProcedure.query(async ({ ctx }) => {
     if (!ctx.user) return null;
 
     const db = await getDb();
@@ -27,7 +27,7 @@ export const authRouter = router({
       .where(eq(users.id, ctx.user.id))
       .limit(1);
 
-    if (!userDetails.length) return ctx.user;
+    if (!userDetails.length) return null;
 
     const permissions = await getUserPermissions(ctx.user.id);
 

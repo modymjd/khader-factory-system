@@ -1,8 +1,8 @@
 import { ReactNode } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { hasPermission, canView } from "@/lib/permissions";
-import NotFound from "@/pages/NotFound";
+import { hasPermission } from "@/lib/permissions";
 import { Loader2 } from "lucide-react";
+import { Redirect } from "wouter";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,10 +11,6 @@ interface ProtectedRouteProps {
   adminOnly?: boolean;
 }
 
-/**
- * ProtectedRoute component that enforces RBAC permissions
- * Wraps routes to ensure user has required permissions
- */
 export default function ProtectedRoute({
   children,
   requiredResource,
@@ -23,7 +19,6 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
-  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -32,26 +27,27 @@ export default function ProtectedRoute({
     );
   }
 
-  // Check if user is authenticated
+  // Not logged in → redirect to login
   if (!user) {
-    return <NotFound />;
+    return <Redirect to="/" />;
   }
 
-  // Check admin requirement
   if (adminOnly && user.role !== "admin") {
-    return <NotFound />;
+    return <Redirect to="/" />;
   }
 
-  // Check resource permission if specified
+  // Check resource permission
   if (requiredResource) {
     const hasAccess = hasPermission(
-      user.permissions,
+      (user as any).permissions,
       requiredResource,
       requiredAction
     );
-
     if (!hasAccess) {
-      return <NotFound />;
+      // Admin always has access regardless of permission table
+      if (user.role !== "admin") {
+        return <Redirect to="/" />;
+      }
     }
   }
 
