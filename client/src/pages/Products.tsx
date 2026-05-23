@@ -260,7 +260,7 @@ export default function Products() {
                 <SelectValue placeholder="جميع التصنيفات" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">جميع التصنيفات</SelectItem>
+                <SelectItem value="all">جميع التصنيفات</SelectItem>
                 {categories?.map((cat) => (
                   <SelectItem key={cat} value={cat || ""}>
                     {cat}
@@ -273,7 +273,7 @@ export default function Products() {
                 <SelectValue placeholder="جميع الحالات" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">جميع الحالات</SelectItem>
+                <SelectItem value="all">جميع الحالات</SelectItem>
                 <SelectItem value="active">نشط</SelectItem>
                 <SelectItem value="inactive">غير نشط</SelectItem>
               </SelectContent>

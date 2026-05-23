@@ -120,7 +120,7 @@ export default function Orders() {
                 <SelectValue placeholder="حالة الطلب" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">جميع الحالات</SelectItem>
+                <SelectItem value="all">جميع الحالات</SelectItem>
                 <SelectItem value="pending">قيد الانتظار</SelectItem>
                 <SelectItem value="confirmed">مؤكد</SelectItem>
                 <SelectItem value="completed">مكتمل</SelectItem>
@@ -132,7 +132,7 @@ export default function Orders() {
                 <SelectValue placeholder="حالة الدفع" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">جميع الحالات</SelectItem>
+                <SelectItem value="all">جميع الحالات</SelectItem>
                 <SelectItem value="unpaid">لم يتم الدفع</SelectItem>
                 <SelectItem value="paid">مدفوع</SelectItem>
                 <SelectItem value="refunded">مسترجع</SelectItem>

@@ -87,7 +87,7 @@ export default function AuditLogs() {
                 <SelectValue placeholder="نوع العملية" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">جميع العمليات</SelectItem>
+                <SelectItem value="all">جميع العمليات</SelectItem>
                 <SelectItem value="create">إنشاء</SelectItem>
                 <SelectItem value="read">قراءة</SelectItem>
                 <SelectItem value="update">تحديث</SelectItem>

@@ -234,7 +234,7 @@ export default function Users() {
                 <SelectValue placeholder="اختر الحالة" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">جميع الحالات</SelectItem>
+                <SelectItem value="all">جميع الحالات</SelectItem>
                 <SelectItem value="active">نشط</SelectItem>
                 <SelectItem value="inactive">غير نشط</SelectItem>
               </SelectContent>
