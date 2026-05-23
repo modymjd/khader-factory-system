@@ -14,7 +14,7 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"pending" | "confirmed" | "completed" | "cancelled" | undefined>();
-  const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid" | "refunded" | undefined>();
+  const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "partial" | "paid" | undefined>();
   const [openCreate, setOpenCreate] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
@@ -115,7 +115,7 @@ export default function Orders() {
                 setPage(1);
               }}
             />
-            <Select value={status || ""} onValueChange={(v) => setStatus(v as any)}>
+            <Select value={status || ""} onValueChange={(v) => setStatus(v === "all" ? undefined : v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="حالة الطلب" />
               </SelectTrigger>
@@ -127,7 +127,7 @@ export default function Orders() {
                 <SelectItem value="cancelled">ملغى</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={paymentStatus || ""} onValueChange={(v) => setPaymentStatus(v as any)}>
+            <Select value={paymentStatus || ""} onValueChange={(v) => setPaymentStatus(v === "all" ? undefined : v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="حالة الدفع" />
               </SelectTrigger>
@@ -217,7 +217,7 @@ export default function Orders() {
                           <SelectContent>
                             <SelectItem value="unpaid">لم يتم الدفع</SelectItem>
                             <SelectItem value="paid">مدفوع</SelectItem>
-                            <SelectItem value="refunded">مسترجع</SelectItem>
+                            <SelectItem value="partial">جزئي</SelectItem>
                           </SelectContent>
                         </Select>
                       </td>

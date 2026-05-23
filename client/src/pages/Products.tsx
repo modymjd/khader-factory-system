@@ -253,7 +253,7 @@ export default function Products() {
               }}
             />
             <Select value={category} onValueChange={(v) => {
-              setCategory(v);
+              setCategory(v === "all" ? "" : v);
               setPage(1);
             }}>
               <SelectTrigger>
@@ -262,13 +262,13 @@ export default function Products() {
               <SelectContent>
                 <SelectItem value="all">جميع التصنيفات</SelectItem>
                 {categories?.map((cat) => (
-                  <SelectItem key={cat} value={cat || ""}>
+                  {cat && <SelectItem key={cat} value={cat}>
                     {cat}
-                  </SelectItem>
+                  </SelectItem>}
                 ))}
               </SelectContent>
             </Select>
-            <Select value={status || ""} onValueChange={(v) => setStatus(v as any)}>
+            <Select value={status || ""} onValueChange={(v) => setStatus(v === "all" ? undefined : v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="جميع الحالات" />
               </SelectTrigger>

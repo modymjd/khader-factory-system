@@ -229,7 +229,7 @@ export default function Users() {
             />
             <Input placeholder="مثال: admin_2024" />
             <Input placeholder="مدير مبيعات، مطور..." />
-            <Select value={status || ""} onValueChange={(v) => setStatus(v as any)}>
+            <Select value={status || ""} onValueChange={(v) => setStatus(v === "all" ? undefined : v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="اختر الحالة" />
               </SelectTrigger>

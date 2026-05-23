@@ -26,11 +26,17 @@ export const dashboardRouter = router({
       .select({ count: sql<number>`COUNT(*)` })
       .from(orders);
 
+    // Get recent operations count (last 24h)
+    const [recentOps] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(auditLogs)
+      .where(sql`${auditLogs.createdAt} >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`);
+
     return {
       totalUsers: totalUsers?.count || 0,
       activeUsers: activeUsers?.count || 0,
-      totalEmployees: totalEmployees?.count || 0,
-      totalOrders: totalOrders?.count || 0,
+      totalRoles: totalEmployees?.count || 0,
+      recentOperations: recentOps?.count || 0,
     };
   }),
 
@@ -51,7 +57,7 @@ export const dashboardRouter = router({
 
     return data.map((item) => ({
       date: item.date,
-      activity: item.count,
+      operations: item.count,
     }));
   }),
 

@@ -1,15 +1,20 @@
+-- Initial migration: create all tables for khader-factory-system
+-- Generated manually to fix missing migration file
+
 CREATE TABLE `roles` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
-  `name` varchar(64) NOT NULL UNIQUE,
+  `name` varchar(64) NOT NULL,
   `description` text,
   `is_system` boolean NOT NULL DEFAULT false,
   `created_at` timestamp NOT NULL DEFAULT (now()),
   `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP
 );
 
+ALTER TABLE `roles` ADD UNIQUE(`name`);
+
 CREATE TABLE `users` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
-  `username` varchar(64) NOT NULL UNIQUE,
+  `username` varchar(64) NOT NULL,
   `email` varchar(320),
   `password_hash` text NOT NULL,
   `role` varchar(32) NOT NULL DEFAULT 'user',
@@ -18,11 +23,13 @@ CREATE TABLE `users` (
   `last_signed_in` timestamp,
   `created_at` timestamp NOT NULL DEFAULT (now()),
   `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-  `openId` varchar(64) UNIQUE,
+  `openId` varchar(64),
   `name` text,
-  `loginMethod` varchar(64),
-  CONSTRAINT `users_role_id_roles_id_fk` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `loginMethod` varchar(64)
 );
+
+ALTER TABLE `users` ADD UNIQUE(`username`);
+ALTER TABLE `users` ADD UNIQUE(`openId`);
 
 CREATE TABLE `sessions` (
   `id` varchar(128) PRIMARY KEY NOT NULL,
@@ -30,8 +37,7 @@ CREATE TABLE `sessions` (
   `expires_at` timestamp NOT NULL,
   `ip_address` varchar(45),
   `user_agent` text,
-  `created_at` timestamp NOT NULL DEFAULT (now()),
-  CONSTRAINT `sessions_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `created_at` timestamp NOT NULL DEFAULT (now())
 );
 
 CREATE TABLE `permissions` (
@@ -45,9 +51,7 @@ CREATE TABLE `permissions` (
 CREATE TABLE `role_permissions` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   `role_id` int NOT NULL,
-  `permission_id` int NOT NULL,
-  CONSTRAINT `role_permissions_role_id_roles_id_fk` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `role_permissions_permission_id_permissions_id_fk` FOREIGN KEY (`permission_id`) REFERENCES `permissions`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `permission_id` int NOT NULL
 );
 
 CREATE TABLE `employees` (
@@ -59,15 +63,14 @@ CREATE TABLE `employees` (
   `monthly_salary` decimal(12,2),
   `deductions` decimal(12,2) DEFAULT '0.00',
   `annual_leave_balance` int DEFAULT 0,
-  `hire_date` timestamp NULL,
+  `hire_date` timestamp,
   `created_at` timestamp NOT NULL DEFAULT (now()),
-  `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT `employees_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE `products` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
-  `sku` varchar(64) NOT NULL UNIQUE,
+  `sku` varchar(64) NOT NULL,
   `name` varchar(256) NOT NULL,
   `category` varchar(128),
   `description` text,
@@ -79,9 +82,11 @@ CREATE TABLE `products` (
   `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP
 );
 
+ALTER TABLE `products` ADD UNIQUE(`sku`);
+
 CREATE TABLE `orders` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
-  `order_number` varchar(64) NOT NULL UNIQUE,
+  `order_number` varchar(64) NOT NULL,
   `customer_id` int,
   `total_amount` decimal(12,2) NOT NULL,
   `status` enum('pending','confirmed','completed','cancelled') NOT NULL DEFAULT 'pending',
@@ -89,9 +94,10 @@ CREATE TABLE `orders` (
   `notes` text,
   `created_by` int NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT (now()),
-  `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT `orders_created_by_users_id_fk` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP
 );
+
+ALTER TABLE `orders` ADD UNIQUE(`order_number`);
 
 CREATE TABLE `order_items` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
@@ -99,32 +105,30 @@ CREATE TABLE `order_items` (
   `product_id` int NOT NULL,
   `quantity` int NOT NULL,
   `unit_price` decimal(12,2) NOT NULL,
-  `subtotal` decimal(12,2) NOT NULL,
-  CONSTRAINT `order_items_order_id_orders_id_fk` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `order_items_product_id_products_id_fk` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `subtotal` decimal(12,2) NOT NULL
 );
 
 CREATE TABLE `attendance` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   `employee_id` int NOT NULL,
   `date` timestamp NOT NULL,
-  `check_in_time` timestamp NULL,
-  `check_out_time` timestamp NULL,
+  `check_in_time` timestamp,
+  `check_out_time` timestamp,
   `check_in_method` varchar(32),
   `check_out_method` varchar(32),
   `notes` text,
-  `created_at` timestamp NOT NULL DEFAULT (now()),
-  CONSTRAINT `attendance_employee_id_employees_id_fk` FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `created_at` timestamp NOT NULL DEFAULT (now())
 );
 
 CREATE TABLE `employee_qr_codes` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
   `employee_id` int NOT NULL,
   `qr_code` text NOT NULL,
-  `qr_code_value` varchar(256) NOT NULL UNIQUE,
-  `created_at` timestamp NOT NULL DEFAULT (now()),
-  CONSTRAINT `employee_qr_codes_employee_id_employees_id_fk` FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `qr_code_value` varchar(256) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT (now())
 );
+
+ALTER TABLE `employee_qr_codes` ADD UNIQUE(`qr_code_value`);
 
 CREATE TABLE `audit_logs` (
   `id` int AUTO_INCREMENT PRIMARY KEY NOT NULL,
@@ -136,6 +140,18 @@ CREATE TABLE `audit_logs` (
   `ip_address` varchar(45),
   `user_agent` text,
   `status` varchar(32) DEFAULT 'success',
-  `created_at` timestamp NOT NULL DEFAULT (now()),
-  CONSTRAINT `audit_logs_actor_users_id_fk` FOREIGN KEY (`actor`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `created_at` timestamp NOT NULL DEFAULT (now())
 );
+
+-- Foreign keys
+ALTER TABLE `users` ADD CONSTRAINT `users_role_id_roles_id_fk` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `sessions` ADD CONSTRAINT `sessions_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `role_permissions` ADD CONSTRAINT `role_permissions_role_id_roles_id_fk` FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `role_permissions` ADD CONSTRAINT `role_permissions_permission_id_permissions_id_fk` FOREIGN KEY (`permission_id`) REFERENCES `permissions`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `employees` ADD CONSTRAINT `employees_user_id_users_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `orders` ADD CONSTRAINT `orders_created_by_users_id_fk` FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `order_items` ADD CONSTRAINT `order_items_order_id_orders_id_fk` FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `order_items` ADD CONSTRAINT `order_items_product_id_products_id_fk` FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `attendance` ADD CONSTRAINT `attendance_employee_id_employees_id_fk` FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `employee_qr_codes` ADD CONSTRAINT `employee_qr_codes_employee_id_employees_id_fk` FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE `audit_logs` ADD CONSTRAINT `audit_logs_actor_users_id_fk` FOREIGN KEY (`actor`) REFERENCES `users`(`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;

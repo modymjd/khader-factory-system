@@ -82,7 +82,7 @@ export default function AuditLogs() {
                 setPage(1);
               }}
             />
-            <Select value={action || ""} onValueChange={(v) => setAction(v as any)}>
+            <Select value={action || ""} onValueChange={(v) => setAction(v === "all" ? undefined : v as any)}>
               <SelectTrigger>
                 <SelectValue placeholder="نوع العملية" />
               </SelectTrigger>
