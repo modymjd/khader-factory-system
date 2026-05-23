@@ -27,13 +27,14 @@ export const users = mysqlTable("users", {
   username: varchar("username", { length: 64 }).notNull().unique(),
   email: varchar("email", { length: 320 }),
   passwordHash: text("password_hash").notNull(),
-  role: varchar("role", { length: 32 }).default("user").notNull(), // 'admin' or 'user'
+  phone: varchar("phone", { length: 32 }),
+  address: text("address"),
+  role: varchar("role", { length: 32 }).default("user").notNull(),
   roleId: int("role_id").references(() => roles.id),
   isActive: boolean("is_active").default(true).notNull(),
   lastSignedIn: timestamp("last_signed_in"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-  // Compatibility with template auth
   openId: varchar("openId", { length: 64 }).unique(),
   name: text("name"),
   loginMethod: varchar("loginMethod", { length: 64 }),
@@ -53,8 +54,8 @@ export const sessions = mysqlTable("sessions", {
 export const permissions = mysqlTable("permissions", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 128 }).notNull(),
-  resource: varchar("resource", { length: 64 }).notNull(), // e.g., 'users', 'products'
-  action: varchar("action", { length: 64 }).notNull(), // e.g., 'create', 'read', 'update', 'delete'
+  resource: varchar("resource", { length: 64 }).notNull(),
+  action: varchar("action", { length: 64 }).notNull(),
   description: text("description"),
 });
 
@@ -80,6 +81,35 @@ export const employees = mysqlTable("employees", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
+// --- Salary & Financials ---
+
+export const salaryTransactions = mysqlTable("salary_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employee_id").notNull().references(() => employees.id),
+  month: varchar("month", { length: 7 }).notNull(), // e.g., "2025-01"
+  baseSalary: decimal("base_salary", { precision: 12, scale: 2 }).notNull(),
+  deductions: decimal("deductions", { precision: 12, scale: 2 }).default("0.00"),
+  bonuses: decimal("bonuses", { precision: 12, scale: 2 }).default("0.00"),
+  netSalary: decimal("net_salary", { precision: 12, scale: 2 }).notNull(),
+  status: mysqlEnum("status", ["pending", "paid"]).default("pending").notNull(),
+  notes: text("notes"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const leaveRequests = mysqlTable("leave_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employee_id").notNull().references(() => employees.id),
+  type: mysqlEnum("type", ["annual", "sick", "unpaid", "emergency"]).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  days: int("days").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  reason: text("reason"),
+  approvedBy: int("approved_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // --- Products & Inventory ---
 
 export const products = mysqlTable("products", {
@@ -101,7 +131,9 @@ export const products = mysqlTable("products", {
 export const orders = mysqlTable("orders", {
   id: int("id").autoincrement().primaryKey(),
   orderNumber: varchar("order_number", { length: 64 }).notNull().unique(),
-  customerId: int("customer_id"), // Placeholder for future customer management
+  customerName: varchar("customer_name", { length: 128 }),
+  customerPhone: varchar("customer_phone", { length: 32 }),
+  customerId: int("customer_id"),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
   status: mysqlEnum("status", ["pending", "confirmed", "completed", "cancelled"]).default("pending").notNull(),
   paymentStatus: mysqlEnum("payment_status", ["unpaid", "partial", "paid"]).default("unpaid").notNull(),
@@ -128,7 +160,7 @@ export const attendance = mysqlTable("attendance", {
   date: timestamp("date").notNull(),
   checkInTime: timestamp("check_in_time"),
   checkOutTime: timestamp("check_out_time"),
-  checkInMethod: varchar("check_in_method", { length: 32 }), // 'qr' or 'manual'
+  checkInMethod: varchar("check_in_method", { length: 32 }),
   checkOutMethod: varchar("check_out_method", { length: 32 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -147,7 +179,7 @@ export const employeeQRCodes = mysqlTable("employee_qr_codes", {
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   actor: int("actor").notNull().references(() => users.id),
-  action: varchar("action", { length: 64 }).notNull(), // 'create', 'read', 'update', 'delete', 'login', 'logout'
+  action: varchar("action", { length: 64 }).notNull(),
   resource: varchar("resource", { length: 64 }).notNull(),
   resourceId: int("resource_id"),
   changes: json("changes"),
@@ -166,3 +198,5 @@ export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Attendance = typeof attendance.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type SalaryTransaction = typeof salaryTransactions.$inferSelect;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;

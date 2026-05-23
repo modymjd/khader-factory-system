@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc, like } from "drizzle-orm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { attendance, employeeQRCodes, employees } from "../../drizzle/schema";
@@ -8,371 +8,233 @@ import { logAudit } from "../db";
 import QRCode from "qrcode";
 
 export const attendanceRouter = router({
-  // Generate QR code for employee
+  // Search employees by name
+  searchEmployees: protectedProcedure
+    .input(z.object({ search: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const conditions = input.search
+        ? [sql`${employees.fullName} LIKE ${`%${input.search}%`}`]
+        : [];
+      const data = await db.select({
+        id: employees.id,
+        fullName: employees.fullName,
+        department: employees.department,
+        jobTitle: employees.jobTitle,
+      }).from(employees)
+        .where(conditions.length > 0 ? conditions[0] : undefined)
+        .limit(20);
+      return data;
+    }),
+
+  // Generate or refresh QR code
   generateQRCode: protectedProcedure
     .input(z.object({ employeeId: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const employee = await db
-        .select()
-        .from(employees)
-        .where(eq(employees.id, input.employeeId))
-        .limit(1);
+      const emp = await db.select().from(employees).where(eq(employees.id, input.employeeId)).limit(1);
+      if (!emp.length) throw new TRPCError({ code: "NOT_FOUND", message: "Employee not found" });
 
-      if (!employee.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Employee not found",
-        });
-      }
-
-      // Check if QR code already exists
-      const existing = await db
-        .select()
-        .from(employeeQRCodes)
-        .where(eq(employeeQRCodes.employeeId, input.employeeId))
-        .limit(1);
-
-      const qrCodeValue = `EMP-${input.employeeId}-${Date.now()}`;
+      const qrCodeValue = `EMP-${input.employeeId}-${emp[0].fullName.replace(/\s/g,"-")}`;
       const qrCodeDataUrl = await QRCode.toDataURL(qrCodeValue);
 
+      const existing = await db.select().from(employeeQRCodes).where(eq(employeeQRCodes.employeeId, input.employeeId)).limit(1);
+
       if (existing.length > 0) {
-        // Update existing
-        await db
-          .update(employeeQRCodes)
-          .set({
-            qrCode: qrCodeDataUrl,
-            qrCodeValue,
-          })
-          .where(eq(employeeQRCodes.employeeId, input.employeeId));
-
-        return { qrCode: qrCodeDataUrl, qrCodeValue };
+        await db.update(employeeQRCodes).set({ qrCode: qrCodeDataUrl, qrCodeValue }).where(eq(employeeQRCodes.employeeId, input.employeeId));
       } else {
-        // Create new
-        await db.insert(employeeQRCodes).values({
-          employeeId: input.employeeId,
-          qrCode: qrCodeDataUrl,
-          qrCodeValue,
-        });
-
-        return { qrCode: qrCodeDataUrl, qrCodeValue };
+        await db.insert(employeeQRCodes).values({ employeeId: input.employeeId, qrCode: qrCodeDataUrl, qrCodeValue });
       }
+
+      return { qrCode: qrCodeDataUrl, qrCodeValue, employeeName: emp[0].fullName };
     }),
 
-  // Get employee QR code
   getQRCode: protectedProcedure
     .input(z.object({ employeeId: z.number().int() }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-
-      const qrCode = await db
-        .select()
-        .from(employeeQRCodes)
-        .where(eq(employeeQRCodes.employeeId, input.employeeId))
-        .limit(1);
-
-      if (!qrCode.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "QR code not found",
-        });
-      }
-
-      return qrCode[0];
+      const qr = await db.select().from(employeeQRCodes).where(eq(employeeQRCodes.employeeId, input.employeeId)).limit(1);
+      return qr.length ? qr[0] : null;
     }),
 
-  // Check-in with QR code
+  // Get all employees QR codes
+  getAllQRCodes: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    return await db.select({
+      id: employees.id,
+      fullName: employees.fullName,
+      department: employees.department,
+      qrCode: employeeQRCodes.qrCode,
+      qrCodeValue: employeeQRCodes.qrCodeValue,
+    }).from(employees)
+      .leftJoin(employeeQRCodes, eq(employees.id, employeeQRCodes.employeeId));
+  }),
+
+  // Check in by QR
   checkInQR: protectedProcedure
     .input(z.object({ qrCodeValue: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const qrCode = await db
-        .select()
-        .from(employeeQRCodes)
-        .where(eq(employeeQRCodes.qrCodeValue, input.qrCodeValue))
+      const qr = await db.select().from(employeeQRCodes).where(eq(employeeQRCodes.qrCodeValue, input.qrCodeValue)).limit(1);
+      if (!qr.length) throw new TRPCError({ code: "NOT_FOUND", message: "رمز QR غير صالح" });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const existing = await db.select().from(attendance)
+        .where(and(eq(attendance.employeeId, qr[0].employeeId), gte(attendance.date, today)))
         .limit(1);
 
-      if (!qrCode.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Invalid QR code",
-        });
+      if (existing.length > 0 && existing[0].checkInTime) {
+        throw new TRPCError({ code: "CONFLICT", message: "تم تسجيل الحضور مسبقاً لهذا اليوم" });
       }
 
-      const employeeId = qrCode[0].employeeId;
-      const now = new Date();
+      if (existing.length > 0) {
+        await db.update(attendance).set({ checkInTime: new Date(), checkInMethod: "qr" }).where(eq(attendance.id, existing[0].id));
+        return { success: true, message: "تم تسجيل الحضور" };
+      }
 
-      // Create attendance record
-      const result = await db.insert(attendance).values({
-        employeeId,
-        checkInTime: now,
+      await db.insert(attendance).values({
+        employeeId: qr[0].employeeId,
+        date: new Date(),
+        checkInTime: new Date(),
         checkInMethod: "qr",
-        date: now,
       });
 
-      // Log audit
-      await logAudit(
-        ctx.user.id,
-        "create",
-        "attendance",
-        Number(result.insertId),
-        { employeeId, checkInTime: now },
-        ctx.req
-      );
-
-      return { id: result.insertId, employeeId, checkInTime: now };
+      return { success: true, message: "تم تسجيل الحضور" };
     }),
 
-  // Check-out with QR code
+  // Check out by QR
   checkOutQR: protectedProcedure
     .input(z.object({ qrCodeValue: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const qrCode = await db
-        .select()
-        .from(employeeQRCodes)
-        .where(eq(employeeQRCodes.qrCodeValue, input.qrCodeValue))
-        .limit(1);
+      const qr = await db.select().from(employeeQRCodes).where(eq(employeeQRCodes.qrCodeValue, input.qrCodeValue)).limit(1);
+      if (!qr.length) throw new TRPCError({ code: "NOT_FOUND", message: "رمز QR غير صالح" });
 
-      if (!qrCode.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Invalid QR code",
-        });
-      }
-
-      const employeeId = qrCode[0].employeeId;
-      const now = new Date();
-
-      // Find today's check-in record
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const todayRecord = await db
-        .select()
-        .from(attendance)
-        .where(
-          and(
-            eq(attendance.employeeId, employeeId),
-            gte(attendance.date, today),
-            lte(attendance.date, new Date())
-          )
-        )
-        .orderBy(sql`${attendance.createdAt} DESC`)
+      const record = await db.select().from(attendance)
+        .where(and(eq(attendance.employeeId, qr[0].employeeId), gte(attendance.date, today)))
         .limit(1);
 
-      if (!todayRecord.length) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No check-in record found for today",
+      if (!record.length || !record[0].checkInTime) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "لا يوجد تسجيل حضور لهذا الموظف اليوم" });
+      }
+
+      await db.update(attendance).set({ checkOutTime: new Date(), checkOutMethod: "qr" }).where(eq(attendance.id, record[0].id));
+      return { success: true, message: "تم تسجيل المغادرة" };
+    }),
+
+  // Manual check in by employee ID
+  checkInManual: protectedProcedure
+    .input(z.object({ employeeId: z.number().int(), checkInTime: z.date().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkIn = input.checkInTime || new Date();
+
+      const existing = await db.select().from(attendance)
+        .where(and(eq(attendance.employeeId, input.employeeId), gte(attendance.date, today)))
+        .limit(1);
+
+      if (existing.length > 0 && existing[0].checkInTime) {
+        throw new TRPCError({ code: "CONFLICT", message: "تم تسجيل الحضور مسبقاً" });
+      }
+
+      if (existing.length > 0) {
+        await db.update(attendance).set({ checkInTime: checkIn, checkInMethod: "manual" }).where(eq(attendance.id, existing[0].id));
+      } else {
+        await db.insert(attendance).values({
+          employeeId: input.employeeId,
+          date: new Date(),
+          checkInTime: checkIn,
+          checkInMethod: "manual",
         });
       }
 
-      // Update check-out time
-      await db
-        .update(attendance)
-        .set({
-          checkOutTime: now,
-          checkOutMethod: "qr",
-        })
-        .where(eq(attendance.id, todayRecord[0].id));
-
-      // Log audit
-      await logAudit(
-        ctx.user.id,
-        "update",
-        "attendance",
-        todayRecord[0].id,
-        { checkOutTime: now },
-        ctx.req
-      );
-
-      return { id: todayRecord[0].id, employeeId, checkOutTime: now };
+      return { success: true };
     }),
 
-  // Manual check-in
-  checkInManual: protectedProcedure
-    .input(
-      z.object({
-        employeeId: z.number().int(),
-        checkInTime: z.date(),
-        notes: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      const result = await db.insert(attendance).values({
-        employeeId: input.employeeId,
-        checkInTime: input.checkInTime,
-        checkInMethod: "manual",
-        notes: input.notes,
-        date: input.checkInTime,
-      });
-
-      // Log audit
-      await logAudit(
-        ctx.user.id,
-        "create",
-        "attendance",
-        Number(result.insertId),
-        { employeeId: input.employeeId, checkInTime: input.checkInTime },
-        ctx.req
-      );
-
-      return { id: result.insertId, ...input };
-    }),
-
-  // Manual check-out
+  // Manual check out
   checkOutManual: protectedProcedure
-    .input(
-      z.object({
-        attendanceId: z.number().int(),
-        checkOutTime: z.date(),
-        notes: z.string().optional(),
-      })
-    )
+    .input(z.object({ attendanceId: z.number().int(), checkOutTime: z.date().optional() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
-
-      await db
-        .update(attendance)
-        .set({
-          checkOutTime: input.checkOutTime,
-          checkOutMethod: "manual",
-          notes: input.notes,
-        })
-        .where(eq(attendance.id, input.attendanceId));
-
-      // Log audit
-      await logAudit(
-        ctx.user.id,
-        "update",
-        "attendance",
-        input.attendanceId,
-        { checkOutTime: input.checkOutTime },
-        ctx.req
-      );
-
-      return { id: input.attendanceId, ...input };
+      await db.update(attendance).set({ checkOutTime: input.checkOutTime || new Date(), checkOutMethod: "manual" }).where(eq(attendance.id, input.attendanceId));
+      return { success: true };
     }),
 
-  // Get attendance log with filters
+  // List attendance
   list: protectedProcedure
-    .input(
-      z.object({
-        employeeId: z.number().int().optional(),
-        startDate: z.date().optional(),
-        endDate: z.date().optional(),
-        page: z.number().int().default(1),
-        limit: z.number().int().default(10),
-      })
-    )
+    .input(z.object({
+      employeeId: z.number().int().optional(),
+      page: z.number().int().default(1),
+      limit: z.number().int().default(20),
+    }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
       const offset = (input.page - 1) * input.limit;
-      let query = db.select().from(attendance);
+      const conditions = input.employeeId ? [eq(attendance.employeeId, input.employeeId)] : [];
+      const whereClause = conditions.length > 0 ? conditions[0] : undefined;
 
-      const conditions = [];
-
-      if (input.employeeId) {
-        conditions.push(eq(attendance.employeeId, input.employeeId));
-      }
-
-      if (input.startDate) {
-        conditions.push(gte(attendance.date, input.startDate));
-      }
-
-      if (input.endDate) {
-        conditions.push(lte(attendance.date, input.endDate));
-      }
-
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-
-      // Get total count
-      const countResult = await db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(attendance)
-        .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-      const total = countResult[0]?.count || 0;
-
-      // Get paginated results
-      const data = await query
-        .orderBy(sql`${attendance.createdAt} DESC`)
-        .limit(input.limit)
-        .offset(offset);
+      const [countResult, data] = await Promise.all([
+        db.select({ count: sql<number>`COUNT(*)` }).from(attendance).where(whereClause),
+        db.select({
+          id: attendance.id,
+          employeeId: attendance.employeeId,
+          employeeName: employees.fullName,
+          date: attendance.date,
+          checkInTime: attendance.checkInTime,
+          checkOutTime: attendance.checkOutTime,
+          checkInMethod: attendance.checkInMethod,
+          checkOutMethod: attendance.checkOutMethod,
+          notes: attendance.notes,
+        }).from(attendance)
+          .leftJoin(employees, eq(attendance.employeeId, employees.id))
+          .where(whereClause)
+          .orderBy(desc(attendance.date))
+          .limit(input.limit).offset(offset),
+      ]);
 
       return {
         data,
-        total,
-        page: input.page,
-        limit: input.limit,
-        pages: Math.ceil(total / input.limit),
+        total: countResult[0]?.count || 0,
+        pages: Math.ceil((countResult[0]?.count || 0) / input.limit),
       };
     }),
 
-  // Get attendance statistics
   getStatistics: protectedProcedure
-    .input(
-      z.object({
-        employeeId: z.number().int().optional(),
-        startDate: z.date().optional(),
-        endDate: z.date().optional(),
-      })
-    )
+    .input(z.object({ employeeId: z.number().int().optional() }))
     .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const conditions = [];
+      const conditions = input.employeeId ? [eq(attendance.employeeId, input.employeeId)] : [];
+      const whereClause = conditions.length > 0 ? conditions[0] : undefined;
 
-      if (input.employeeId) {
-        conditions.push(eq(attendance.employeeId, input.employeeId));
-      }
+      const stats = await db.select({
+        totalRecords: sql<number>`COUNT(*)`,
+        completedRecords: sql<number>`SUM(CASE WHEN ${attendance.checkOutTime} IS NOT NULL THEN 1 ELSE 0 END)`,
+        pendingRecords: sql<number>`SUM(CASE WHEN ${attendance.checkInTime} IS NOT NULL AND ${attendance.checkOutTime} IS NULL THEN 1 ELSE 0 END)`,
+      }).from(attendance).where(whereClause);
 
-      if (input.startDate) {
-        conditions.push(gte(attendance.date, input.startDate));
-      }
-
-      if (input.endDate) {
-        conditions.push(lte(attendance.date, input.endDate));
-      }
-
-      // Total attendance records
-      const totalRecords = await db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(attendance)
-        .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-      // Completed check-ins and check-outs
-      const completedRecords = await db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(attendance)
-        .where(
-          and(
-            sql`${attendance.checkOutTime} IS NOT NULL`,
-            conditions.length > 0 ? and(...conditions) : undefined
-          )
-        );
-
-      return {
-        totalRecords: totalRecords[0]?.count || 0,
-        completedRecords: completedRecords[0]?.count || 0,
-        pendingRecords: (totalRecords[0]?.count || 0) - (completedRecords[0]?.count || 0),
-      };
+      return stats[0];
     }),
 });

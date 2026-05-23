@@ -1,12 +1,12 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
+import { Wallet, useAuth } from "@/_core/hooks/useAuth";
+import { Wallet, Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Wallet,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
+import { Wallet,
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -19,9 +19,9 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
-import { useIsMobile } from "@/hooks/useMobile";
-import {
+import { Wallet, getLoginUrl } from "@/const";
+import { Wallet, useIsMobile } from "@/hooks/useMobile";
+import { Wallet,
   LayoutDashboard,
   LogOut,
   PanelLeft,
@@ -36,11 +36,11 @@ import {
   Settings,
   User as UserIcon,
 } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState, useMemo } from "react";
-import { useLocation } from "wouter";
-import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
-import { Button } from "./ui/button";
-import { canView } from "@/lib/permissions";
+import { Wallet, CSSProperties, useEffect, useRef, useState, useMemo } from "react";
+import { Wallet, useLocation } from "wouter";
+import { Wallet, DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import { Wallet, Button } from "./ui/button";
+import { Wallet, canView } from "@/lib/permissions";
 
 const allMenuItems = [
   { icon: LayoutDashboard, label: "لوحة المعلومات", path: "/dashboard", resource: "dashboard" },

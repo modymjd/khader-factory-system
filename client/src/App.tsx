@@ -13,6 +13,7 @@ import Attendance from "./pages/Attendance";
 import Analytics from "./pages/Analytics";
 import AuditLogs from "./pages/AuditLogs";
 import Roles from "./pages/Roles";
+import Salary from "./pages/Salary";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
